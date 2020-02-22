@@ -61,7 +61,7 @@ Encoder knob(ENCPin1, ENCPin2);
 
 int reg[2];
 #define REGCOUNT (sizeof(reg)/sizeof(int))
-float regcol[] = {0.6, 0.2};
+float regcol[] = {0.65, 0.2, 0.52, 0.12, 0.38, 0.86, 0};
 
 #define MAXVAL 1024
 
@@ -75,13 +75,17 @@ void setup() {
     reg[i] = 0;
   }
   showReg(reg[0], regcol[0]);
+  Serial.begin(9600);
+  while(!Serial) {
+    ;
+  }
 }
 
 void showReg(int reg, float color) {
   for (int i=0; i<8; i++) {
     // Make the leds show a dim color even on 0, so we know which register
     // is active.
-    vals[i] = (reg & (1 << i))?MAXVAL:MAXVAL/4;
+    vals[i] = (reg & (1 << i))?MAXVAL:MAXVAL/3;
   }
   setLEDs(vals, color);
 }
@@ -133,18 +137,21 @@ void loop() {
       regind += REGCOUNT;
     }
     regind = regind % REGCOUNT;
-    showReg(reg[regind], regcol[regind]);
+    Serial.println("regind=" + String(regind));
+    updateLEDs = true;
   }
   // If anything has changed, update the LEDs
   if (updateLEDs) {
     showReg(reg[regind], regcol[regind]);
   }
-  // On Enter, send - first the Modifiers' Down events, the the Key Down event,
+  // On Enter, send - first the Modifiers' Down events, then the Key Down event,
   // then wait a bit and then do the Up events in reverse order.
   if (hasButtonPressEvent(BTNEnter)) {
     showReg(reg[0], 1);
     sendCode(0, reg[REGCOUNT-1]);
-    sendCode(reg[0], reg[REGCOUNT-1]);
+    for (int i=0; i < REGCOUNT-1; i++) {
+      sendCode(reg[i], reg[REGCOUNT-1]);
+    }
     delay(20);
     sendCode(0, reg[REGCOUNT-1]);
     sendCode(0, 0);
