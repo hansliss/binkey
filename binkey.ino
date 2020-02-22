@@ -75,10 +75,12 @@ void setup() {
     reg[i] = 0;
   }
   showReg(reg[0], regcol[0]);
+  /*
   Serial.begin(9600);
   while(!Serial) {
     ;
   }
+  */
 }
 
 void showReg(int reg, float color) {
@@ -137,7 +139,6 @@ void loop() {
       regind += REGCOUNT;
     }
     regind = regind % REGCOUNT;
-    Serial.println("regind=" + String(regind));
     updateLEDs = true;
   }
   // If anything has changed, update the LEDs
