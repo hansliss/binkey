@@ -59,9 +59,17 @@ const int buttons[] = { BTN0_PIN, BTN1_PIN, BTNEnter_PIN, BTNBS_PIN, BTNEnc_PIN}
 
 Encoder knob(ENCPin1, ENCPin2);
 
-int reg[2];
-#define REGCOUNT (sizeof(reg)/sizeof(int))
-float regcol[] = {0.65, 0.2, 0.52, 0.12, 0.38, 0.86, 0};
+// See below; we can't handle more than 6 simultaneous keys here at the moment, since
+// we are always sending a single report. It's perfectly possible to update this to handle
+// arbitrarily long strings. I just don't want to.
+// Or maybe it will work anyway, actually. I haven't tried it. Whatever.
+#define REGCOUNT 7
+
+int reg[REGCOUNT];
+
+#define COLOR_KEYCODE 0.6
+#define COLOR_META 0.25
+#define COLOR_XMIT 0
 
 #define MAXVAL 1024
 
@@ -74,7 +82,7 @@ void setup() {
   for (int i = 0; i < REGCOUNT; i++) {
     reg[i] = 0;
   }
-  showReg(reg[0], regcol[0]);
+  showReg(reg[0], COLOR_KEYCODE);
   /*
   Serial.begin(9600);
   while(!Serial) {
@@ -143,20 +151,20 @@ void loop() {
   }
   // If anything has changed, update the LEDs
   if (updateLEDs) {
-    showReg(reg[regind], regcol[regind]);
+    showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
   }
   // On Enter, send - first the Modifiers' Down events, then the Key Down event,
   // then wait a bit and then do the Up events in reverse order.
   if (hasButtonPressEvent(BTNEnter)) {
-    showReg(reg[0], 1);
-    sendCode(0, reg[REGCOUNT-1]);
-    for (int i=0; i < REGCOUNT-1; i++) {
-      sendCode(reg[i], reg[REGCOUNT-1]);
-    }
+    showReg(reg[0], COLOR_XMIT);
+    // I'm abusing the little HID library here, basically allowing only a single report
+    // (six keys) to be transmitted, and automatically releasing them together with the
+    // modifiers, after 20ms.
+    sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
     delay(20);
-    sendCode(0, reg[REGCOUNT-1]);
-    sendCode(0, 0);
-    showReg(reg[regind], regcol[regind]);
+    resetKeys();
+    sendCode(reg, 0, 0);
+    showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
   }
   delay(10);
 }
@@ -278,8 +286,10 @@ void addKeyToBuffer(uint8_t key) {
   }
 }
 
-void sendCode(int code, int metaIn) {
-  addKeyToBuffer(code);
+void sendCode(int code[], int numkeys, int metaIn) {
+  for (int i=0; i < numkeys; i++) {
+    addKeyToBuffer(code[i]);
+  }
   meta = metaIn;
   sendRest();
 }
