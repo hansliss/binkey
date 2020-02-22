@@ -10,3 +10,5 @@ Use eight WS2812D-F5 addressable RGB LEDs with the requisite 75Ω resistors on t
 I drilled a 7mm hole for the rotary encoder, and I can't be bothered to add this hole to the design.
 
 For the rest: Use The Source, Luke!
+
+Oh, and you can find the key codes and meta codes under "10 Keyboard/Keypad Page (0x07)" in the HID Usage Tables: https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
