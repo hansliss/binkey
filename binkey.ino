@@ -83,12 +83,12 @@ void setup() {
     reg[i] = 0;
   }
   showReg(reg[0], COLOR_KEYCODE);
-  
+  /*
   Serial.begin(9600);
   while(!Serial) {
     ;
   }
-  
+  */
 }
 
 void showReg(int reg, float color) {
@@ -157,7 +157,6 @@ void loop() {
   // then wait a bit and then do the Up events in reverse order.
   if (hasButtonPressEvent(BTNEnter)) {
     showReg(reg[0], COLOR_XMIT);
-    Serial.println("Sending keys + meta: " + String(reg[REGCOUNT-1]));
     sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
     delay(20);
