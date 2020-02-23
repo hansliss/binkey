@@ -83,12 +83,12 @@ void setup() {
     reg[i] = 0;
   }
   showReg(reg[0], COLOR_KEYCODE);
-  /*
+  
   Serial.begin(9600);
   while(!Serial) {
     ;
   }
-  */
+  
 }
 
 void showReg(int reg, float color) {
@@ -157,12 +157,11 @@ void loop() {
   // then wait a bit and then do the Up events in reverse order.
   if (hasButtonPressEvent(BTNEnter)) {
     showReg(reg[0], COLOR_XMIT);
-    // I'm abusing the little HID library here, basically allowing only a single report
-    // (six keys) to be transmitted, and automatically releasing them together with the
-    // modifiers, after 20ms.
+    Serial.println("Sending keys + meta: " + String(reg[REGCOUNT-1]));
+    sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
     delay(20);
-    resetKeys();
+    sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, 0, 0);
     showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
   }
@@ -281,29 +280,15 @@ uint8_t keyBuf[keyLimit];
 uint8_t meta = 0x0;
 void addKeyToBuffer(uint8_t key) {
   keyBuf[keyPlace++] = key;
-  if (keyPlace == keyLimit) {
-    sendBuffer(meta, keyBuf);
-  }
 }
 
 void sendCode(int code[], int numkeys, int metaIn) {
+  resetKeys();
   for (int i=0; i < numkeys; i++) {
     addKeyToBuffer(code[i]);
   }
   meta = metaIn;
-  sendRest();
-}
-
-void sendRest() {
-  bool shouldSend = false;
-  for (byte b = 0; b < keyLimit; ++b) {
-    if (keyBuf[b] != 0x0) {
-      shouldSend = true;
-    }
-  }
-  //if (shouldSend) {
-    sendBuffer(meta, keyBuf);
-  //}
+  sendBuffer(meta, keyBuf);
 }
 
 void sendBuffer(uint8_t meta, uint8_t keyBuf[]) {
