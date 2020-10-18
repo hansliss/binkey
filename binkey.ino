@@ -100,7 +100,6 @@ void showReg(int reg, float color) {
   setLEDs(vals, color);
 }
 
-
 void loop() {
   boolean updateLEDs=false;
   // The current register
@@ -110,6 +109,8 @@ void loop() {
   // but we can't affect the current knob value. Thus, we use the offset
   // to register the current knob value upon reset.
   static int regoffs = 0;
+  static long idlemillis = 0;
+  boolean didsomething = false;
   long knobValue;
   static long oldKnobValue=(knob.read() >> 2);
   readButtons();
@@ -152,6 +153,7 @@ void loop() {
   // If anything has changed, update the LEDs
   if (updateLEDs) {
     showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
+    didsomething = true;
   }
   // On Enter, send - first the Modifiers' Down events, then the Key Down event,
   // then wait a bit and then do the Up events in reverse order.
@@ -163,6 +165,26 @@ void loop() {
     sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, 0, 0);
     showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
+    didsomething = true;
+  }
+  if (!didsomething) {
+    bool hasvalue = false;
+    for (int i=0; i<REGCOUNT; i++) {
+      if (reg[i] != 0) {
+        hasvalue = true;
+      }
+    }
+    if (!hasvalue) {
+      if (idlemillis == 0) {
+        idlemillis = millis();
+      } else {
+        if (millis() - idlemillis > 60000) {
+          clearLEDs();
+        }
+      }
+    }
+  } else {
+    idlemillis = 0;
   }
   delay(10);
 }
@@ -179,6 +201,13 @@ void setLEDs(long *vals, float color) {
     hsv2rgb(H,S,V,&R,&G,&B);
     uint32_t color = strip.Color(R, G, B);
     strip.setPixelColor(i, strip.gamma32(color));
+  }
+  strip.show();
+}
+
+void clearLEDs() {
+  for (int i=0; i < LED_COUNT; i++) {  
+    strip.setPixelColor(i, 0);
   }
   strip.show();
 }
