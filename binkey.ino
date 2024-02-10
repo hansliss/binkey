@@ -35,7 +35,7 @@
 #define LED_PIN 13
 #define LED_COUNT 8
 
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 long vals[LED_COUNT];
 long oldvals[LED_COUNT];
@@ -46,8 +46,8 @@ long oldvals[LED_COUNT];
 #define BTNBS_PIN 9
 #define BTNEnc_PIN 2
 
-#define ENCPin1 0
-#define ENCPin2 1
+#define ENCPin1 1
+#define ENCPin2 0
 
 #define BTN0 0
 #define BTN1 1
@@ -131,14 +131,14 @@ void loop() {
   }
   // Encoder button resets all the registers and switches to the first
   // keycode register.
-  if (hasButtonPressEvent(BTNEnc)) {
+/*  if (hasButtonPressEvent(BTNEnc)) {
     for (int i=0; i<REGCOUNT; i++) {
       reg[i] = 0;
     }
     updateLEDs = true;
     regind = 0;
     regoffs = oldKnobValue;
-  }
+  }*/
   // Read the knob and switch register as requested
   knobValue=(knob.read() >> 2);
   if (knobValue != oldKnobValue) {
@@ -157,7 +157,7 @@ void loop() {
   }
   // On Enter, send - first the Modifiers' Down events, then the Key Down event,
   // then wait a bit and then do the Up events in reverse order.
-  if (hasButtonPressEvent(BTNEnter)) {
+  if (hasButtonPressEvent(BTNEnc) || hasButtonPressEvent(BTNEnter)) {
     showReg(reg[0], COLOR_XMIT);
     sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
