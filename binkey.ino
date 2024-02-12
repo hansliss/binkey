@@ -32,10 +32,16 @@
 
 #include "KeyboardLib.h"
 
+#define VERSION 2
+
 #define LED_PIN 13
 #define LED_COUNT 8
 
-Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+#if VERSION == 1
+  Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
+#else
+  Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+#endif
 
 long vals[LED_COUNT];
 long oldvals[LED_COUNT];
@@ -102,6 +108,9 @@ void showReg(int reg, float color) {
 
 void loop() {
   boolean updateLEDs=false;
+#if VERSION == 2
+  static boolean lastButtonState = false;
+#endif
   // The current register
   static int regind = 0;
   // We need an offset for the knob value, since we want to be able to
@@ -110,6 +119,7 @@ void loop() {
   // to register the current knob value upon reset.
   static int regoffs = 0;
   static long idlemillis = 0;
+  static boolean idle = false;
   boolean didsomething = false;
   long knobValue;
   static long oldKnobValue=(knob.read() >> 2);
@@ -124,6 +134,7 @@ void loop() {
     reg[regind] = ((reg[regind] << 1) | 1) & 0xFF;
     updateLEDs=true;
   }
+  #if VERSION == 1
   // Shift right
   if (hasButtonPressEvent(BTNBS)) {
     reg[regind] >>= 1;
@@ -131,14 +142,15 @@ void loop() {
   }
   // Encoder button resets all the registers and switches to the first
   // keycode register.
-/*  if (hasButtonPressEvent(BTNEnc)) {
+  if (hasButtonPressEvent(BTNEnc)) {
     for (int i=0; i<REGCOUNT; i++) {
       reg[i] = 0;
     }
     updateLEDs = true;
     regind = 0;
     regoffs = oldKnobValue;
-  }*/
+  }
+  #endif
   // Read the knob and switch register as requested
   knobValue=(knob.read() >> 2);
   if (knobValue != oldKnobValue) {
@@ -150,14 +162,20 @@ void loop() {
     regind = regind % REGCOUNT;
     updateLEDs = true;
   }
+
+  if (idle) {
+    runningLights();
+  }
   // If anything has changed, update the LEDs
   if (updateLEDs) {
+    idle = false;
     showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
     didsomething = true;
   }
   // On Enter, send - first the Modifiers' Down events, then the Key Down event,
   // then wait a bit and then do the Up events in reverse order.
-  if (hasButtonPressEvent(BTNEnc) || hasButtonPressEvent(BTNEnter)) {
+#if VERSION == 1
+  if (hasButtonPressEvent(BTNEnter)) {
     showReg(reg[0], COLOR_XMIT);
     sendCode(reg, 0, reg[REGCOUNT-1]);
     sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
@@ -167,6 +185,20 @@ void loop() {
     showReg(reg[regind], ((regind == REGCOUNT-1)?COLOR_META:COLOR_KEYCODE));
     didsomething = true;
   }
+#else
+  if (isButtonPressed(BTNEnc) && !lastButtonState) {
+    sendCode(reg, 0, reg[REGCOUNT-1]);
+    sendCode(reg, REGCOUNT-1, reg[REGCOUNT-1]);
+    lastButtonState = true;
+    didsomething = true;
+  }
+  if (!isButtonPressed(BTNEnc) && lastButtonState) {
+    sendCode(reg, 0, 0);
+    sendCode(reg, 0, 0);
+    lastButtonState = false;
+    didsomething = true;
+  }
+#endif
   if (!didsomething) {
     bool hasvalue = false;
     for (int i=0; i<REGCOUNT; i++) {
@@ -179,14 +211,16 @@ void loop() {
         idlemillis = millis();
       } else {
         if (millis() - idlemillis > 60000) {
-          clearLEDs();
+          idle = true;
         }
       }
     }
   } else {
     idlemillis = 0;
   }
-  delay(10);
+  if (!idle) {
+    delay(10);
+  }
 }
 
 #pragma region "LED code"
@@ -298,6 +332,10 @@ boolean hasButtonPressEvent(int bNo) {
   }
 }
 
+boolean isButtonPressed(int bNo) {
+  return buttonState[bNo] == LOW;
+}
+
 #pragma endregion "Button handling code"
 
 #pragma region "HID code"
@@ -333,3 +371,87 @@ void resetKeys() {
 }
 
 #pragma endregion "HID code"
+
+#pragma region "Light show"
+
+#define FADEIN_FACTOR (MAXVAL / 10)
+#define FADEIN_FAST_DELAY 10
+#define FADEIN_SLOW_DELAY 20
+#define CMODE_SPECTRUM_SAT 0
+
+#define FADEIN(v, max) ((v) + min(FADEIN_FACTOR, max - (v)))
+#define FADEOUT(v) (29 * (v) / 30)
+
+float correction_R = 0.5;
+float correction_G = 0.5;
+float correction_B = 0.5;
+
+float satVal=0;
+float satValstep=0.0005;
+
+uint32_t valToColor_Sat(long val) {
+  float H = (float)val/MAXVAL;
+  float V = 1; //(float)val/MAXVAL;
+  float S = satVal;
+  int R, G, B;
+  hsv2rgb(H,S,V,&R,&G,&B);
+  satVal += satValstep;
+  if (((satValstep > 0) && (satVal >= 1)) ||
+      ((satValstep < 0) && (satVal <= 0))) {
+    satValstep = -satValstep;
+  }
+  return strip.Color(correction_R * (float)R, correction_G * (float)G, correction_B * (float)B);
+}
+
+void setCandles(long *vals) {
+  int i;
+  for (i=0; i < LED_COUNT; i++) {
+    if (vals[i] != oldvals[i]) {
+      strip.setPixelColor(i, strip.gamma32(valToColor_Sat(vals[i])));
+      oldvals[i] = vals[i];
+    }
+  }
+  strip.show();
+}
+
+void runningLights() {
+  static int rl_runDir=1;
+  static int rl_pos=0;
+  static int rl_del=FADEIN_FAST_DELAY;
+  static int rl_count=rl_del;
+  int i;
+#ifdef DEBUG
+  if (trace) {
+    while (!Serial) {
+      ;
+    }
+    Serial.println("runningLights: rl_runDir=" + String(rl_runDir) + ", rl_pos=" + String(rl_pos) + ", rl_del=" + String(rl_del) + ", rl_count=" + String(rl_count));
+  }
+#endif
+  if (rl_runDir == 1 && rl_pos >= (LED_COUNT - 1)) {
+    rl_runDir = -1;
+    rl_pos = LED_COUNT - 1; // Just to be safe
+  } else if (rl_runDir == -1 && (rl_pos <= 0)) {
+    rl_runDir = 1;
+    rl_pos = 0; // Just to be safe
+  }
+  if (--rl_count == 0) {
+    rl_count = rl_del;
+    vals[rl_pos] = MAXVAL;
+    rl_pos += rl_runDir;
+  } else {
+    if (vals[rl_pos] < MAXVAL) {
+      vals[rl_pos] = FADEIN(vals[rl_pos], MAXVAL);
+    }
+  }
+  
+  for (i=0; i<LED_COUNT; i++) {
+    if (i != rl_pos && vals[i] > 0) {
+      vals[i] = FADEOUT(vals[i]);
+    }
+  }
+  setCandles(vals);
+  delay(340/LED_COUNT);
+}
+
+#pragma endregion "Light show"

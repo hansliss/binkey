@@ -3,8 +3,8 @@ $fn=256;
 capWidthBase=18;
 capHeightBase=18;
 
-keyHoleWidth=14;
-keyHoleLength=14;
+keyHoleWidth=14.5;
+keyHoleLength=14.5;
 
 boxWidth=80;
 boxDepth=40;
@@ -22,14 +22,14 @@ module baseBox() {
                     rotate([0, 90, 0])
                         cylinder(r=boxTopRawHeight/4, h=boxWidth);
             }
-            translate([-10, boxDepth/2 - 5, boxTopRawHeight/2 - 1 - 0.3])
+            translate([-10, boxDepth/2 - 5, boxTopRawHeight/2 - 1 - 0.6])
                 cube([50.5, 5.5, 2], center=true);
             translate([-22, -5, boxTopRawHeight / 2 + 5])
                 cube([keyHoleWidth, keyHoleLength, boxTopRawHeight], center=true);
             translate([-22 + capWidthBase + 5, -5, boxTopRawHeight / 2 + 5])
                 cube([keyHoleWidth, keyHoleLength, boxTopRawHeight], center=true);
-            translate([25, 12, boxTopRawHeight/2 - 5])
-                cylinder(r=3.55, h=10);
+            translate([28, 12, boxTopRawHeight/2 - 5])
+                cylinder(r=3.65, h=10);
             union() {
                 translate([0, 0, -0.751])
                     cube([boxWidth-3, boxDepth - 3, boxTopRawHeight - 1.5], center=true);
@@ -61,7 +61,7 @@ module top() {
             }
         translate([boxWidth / 2 - 7, boxDepth - 5, 0])
             rotate([90, 0, 0])
-                cylinder(r=1.7, h=10);
+                cylinder(r=1.9, h=10);
     }
 }
 
@@ -90,7 +90,7 @@ module bottom() {
         }
         translate([boxWidth / 2 - 7, boxDepth - 5, 0])
             rotate([90, 0, 0])
-                cylinder(r=1.7, h=10);
+                cylinder(r=1.9, h=10);
     }
 }
 
